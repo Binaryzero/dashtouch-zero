@@ -11,8 +11,8 @@
 //   0x3c = what the original tinyTouch firmware used for its ZW101/ZW111
 #include <Arduino.h>
 
-static const int FP_RX_PIN = 5;   // QT Py header pin labeled "TX" -- proven receive pin, see 2026-08-12-qtpy-uart-fault.md
-static const int FP_TX_PIN = 16;  // QT Py header pin labeled "RX" -- proven transmit pin
+static const int FP_RX_PIN = 44;  // ESP32-S3-Zero pad labeled "RX" (GPIO44) -- our receive, sensor yellow/TXD
+static const int FP_TX_PIN = 43;  // ESP32-S3-Zero pad labeled "TX" (GPIO43) -- our transmit, sensor brown/RXD
 
 HardwareSerial Finger(1);
 

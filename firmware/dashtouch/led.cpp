@@ -1,5 +1,12 @@
 #include "led.h"
 #include "settings.h"
+#include <esp32-hal-rgb-led.h>
+
+// The ESP32-S3-Zero's own status LED: a WS2812 on GPIO21 that takes its
+// bytes in RGB order (the core's default is GRB, hence the explicit order
+// in every write). It has nothing to do with the sensor's aura ring, which
+// is driven over the sensor UART by auraCtl() like everything else here.
+static constexpr uint8_t BOARD_LED_PIN = 21;
 
 // Aura constants: modes 1=breathe 2=flash 3=on 4=off; colors 1=red 2=blue
 // 3=purple 4=green 5=yellow 6=cyan 7=white. Full palette verified on this
@@ -38,19 +45,11 @@ static void renderIdle() {
 void ledInit(R503* sensor) {
   s_sensor = sensor;
   s_current = (DtLedState)-1;
-#ifdef PIN_NEOPIXEL
-#ifdef NEOPIXEL_POWER
-  pinMode(NEOPIXEL_POWER, OUTPUT);
-  digitalWrite(NEOPIXEL_POWER, HIGH);
-#endif
-  neopixelWrite(PIN_NEOPIXEL, 0, 0, 0);
-#endif
+  rgbLedWriteOrdered(BOARD_LED_PIN, LED_COLOR_ORDER_RGB, 0, 0, 0);  // board LED off
 }
 
 void boardLedRed(bool on) {
-#ifdef PIN_NEOPIXEL
-  neopixelWrite(PIN_NEOPIXEL, on ? 32 : 0, 0, 0);
-#endif
+  rgbLedWriteOrdered(BOARD_LED_PIN, LED_COLOR_ORDER_RGB, on ? 32 : 0, 0, 0);
 }
 
 void ledSet(DtLedState s) {

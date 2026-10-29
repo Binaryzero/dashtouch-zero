@@ -4,30 +4,44 @@ A handful of small sketches plus a host-side reader. Together they answer
 "is it the wiring, the baud rate, the sensor, or the board?" in a few
 minutes instead of an evening.
 
-All target the QT Py ESP32-S3. Pin labels map to GPIOs as follows (confirmed
-against the Arduino core's variant file, not assumed):
+All target the Waveshare ESP32-S3-Zero, built with the same generic ESP32-S3
+profile as the production firmware. Pad labels map to GPIOs as follows
+(confirmed against the Arduino core's variant files, not assumed):
 
 | Pad label | GPIO | Role in this build |
 | --- | --- | --- |
-| `TX` | 5 | our **receive** (sensor yellow/TXD) |
-| `RX` | 16 | our **transmit** (sensor brown/RXD) |
-| `A3` | 8 | WAKEUP (sensor blue) — unused, see below |
+| `TX` | 43 | our **transmit** (sensor brown/RXD) |
+| `RX` | 44 | our **receive** (sensor yellow/TXD) |
+| `GP8` | 8 | WAKEUP (sensor blue) — unused, see below |
 
-**The TX/RX roles above are swapped relative to the silkscreen**, because
-the board these were written against can't carry UART transmit on GPIO 5.
-If yours can, use the silkscreen orientation. Either way, a sketch pointed
-at the wrong pair will look like a dead sensor, so check this first.
+The sketches use the silkscreen orientation, the same as
+`firmware/dashtouch/config.h`. (Earlier versions were written against a QT
+Py whose `TX` pad couldn't transmit, and carried that board's swapped
+roles; the Zero has no such quirk.) A sketch pointed at the wrong pair will
+look like a dead sensor, so check this first — and note that a stored
+`fp_swap` setting only affects the production firmware, never these
+sketches.
 
-`A3`/WAKEUP is wired but unused: the production firmware sets
-`USE_INT_PIN = false` and polls `GenImg` instead, because on this module the
+GPIO43/44 are also the ESP32-S3's UART0 pins. The ROM prints its boot log on
+GPIO43 at 115200 baud for a moment after every reset, so a few stray bytes
+on the brown lead at power-up are normal; the sensor ignores them.
+
+`GP8`/WAKEUP is wired but unused: the production firmware sets
+`DT_USE_WAKEUP_PIN 0` and polls `GenImg` instead, because on this module the
 WAKEUP line sat permanently at the active level, so the INT path scanned
 nonstop and every scan returned `GENIMG_FAIL 2`.
 
 ```bash
-FQBN="esp32:esp32:adafruit_qtpy_esp32s3_nopsram:CDCOnBoot=cdc,USBMode=default"
+FQBN="esp32:esp32:esp32s3:USBMode=default,CDCOnBoot=cdc,UploadMode=cdc,FlashSize=4M,FlashMode=qio,PartitionScheme=default,PSRAM=disabled"
 arduino-cli compile --fqbn "$FQBN" firmware/diagnostics/fp_sweep
 arduino-cli upload  --fqbn "$FQBN" -p /dev/cu.usbmodemXXX firmware/diagnostics/fp_sweep
 ```
+
+A board already running one of these sketches (or the production firmware)
+reboots into download mode by itself when `upload` runs. A board that isn't
+showing up as `/dev/cu.usbmodem*` needs the BOOT button: hold it while
+plugging in the USB cable, then flash. If the sketch doesn't start on its own
+afterwards, press RESET once.
 
 `fp_sweep` needs the Adafruit library: `arduino-cli lib install "Adafruit
 Fingerprint Sensor Library"`. The others have no dependencies.
@@ -54,12 +68,12 @@ invisible to a reader that exits on the first read error.
 ## Wire ALL SIX sensor wires before diagnosing anything
 
 **Check this before anything else.** Sensor pin 6 (`3.3VT`, white) must be
-connected to `3V`. With it unwired the module powers up, receives commands,
+connected to `3V3`. With it unwired the module powers up, receives commands,
 and *executes* them — the aura ring visibly obeys — but it **cannot reply to
 anything**. That looks exactly like a dead sensor, and it is the most common
 reason a healthy one gets written off.
 
-Both power wires (pins 1 and 6) land on the single `3V` pad. If you are
+Both power wires (pins 1 and 6) land on the single `3V3` pad. If you are
 bringing wires up one at a time to isolate a fault, connect **both power
 wires first** — an under-powered module produces misleading results at every
 later step.
@@ -83,9 +97,11 @@ works will happily confirm the wrong conclusion.
 
 ## `fp_loopback` — "does the board's UART work?"
 
-Jumper the pad labeled `TX` straight to the pad labeled `RX`, with **nothing
-else connected**. The board transmits 8 bytes and should receive its own
-transmission, at three baud rates plus the reversed pin assignment.
+Unplug the sensor's yellow and brown leads, then jumper the pad labeled `TX`
+(GPIO43) straight to the pad labeled `RX` (GPIO44), with **nothing else
+connected** to those two pads. The board transmits 8 bytes and should
+receive its own transmission, at three baud rates plus the reversed pin
+assignment. This test is never run with the reader wired in.
 
 - **`received=8` with the bytes echoed back** — UART peripheral, GPIO matrix
   routing, and both pads are all good. Any fault is downstream.
@@ -99,8 +115,9 @@ transmitting pin in the failing case cannot drive the line.
 
 ## `gpio_drive` — "is the pin electrically sane?"
 
-Same single `TX`↔`RX` jumper. Drives each pin as a bare digital output and
-reads the other as a digital input, with no UART involved.
+Same single `TX`↔`RX` jumper, sensor still disconnected. Drives each pin as
+a bare digital output and reads the other as a digital input, with no UART
+involved.
 
 Note what this does and does not prove. `digitalRead` is a high-impedance
 input drawing nanoamps, so a pass means **a DC path exists** — not that the
@@ -181,7 +198,7 @@ RAM, and only then brings up USB serial to report, so the evidence survives
 even though it arrived before the host was listening. `loop()` keeps printing
 late arrivals, so you can also power-cycle the sensor by hand while it runs.
 
-Since the sensor is powered from the board's `3V` rail, a reflash does not
+Since the sensor is powered from the board's `3V3` rail, a reflash does not
 power-cycle it. To trigger the handshake, pull **both** power wires (sensor
 pins 1 and 6) and reinsert them.
 

@@ -18,8 +18,8 @@
 // instrument here.
 #include <Arduino.h>
 
-static const int FP_RX_PIN = 5;   // pad labeled "TX" -- swapped, as this
-static const int FP_TX_PIN = 16;  // board can't transmit on the default pin
+static const int FP_RX_PIN = 44;  // ESP32-S3-Zero pad labeled "RX" (GPIO44) -- our receive, sensor yellow/TXD
+static const int FP_TX_PIN = 43;  // ESP32-S3-Zero pad labeled "TX" (GPIO43) -- our transmit, sensor brown/RXD
 
 HardwareSerial Finger(1);
 

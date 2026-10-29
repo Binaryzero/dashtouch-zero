@@ -25,7 +25,29 @@ from . import keychain, serial_link, webui
 
 REPO = pathlib.Path(__file__).parents[2]
 SECRETS_PATH = REPO / "firmware" / "dashtouch" / "secrets.h"
-FQBN = "esp32:esp32:adafruit_qtpy_esp32s3_nopsram:CDCOnBoot=cdc,USBMode=default"
+# Build target: the generic ESP32-S3 profile, configured for the Waveshare
+# ESP32-S3-Zero. find_and_flash() compiles and uploads with this one
+# constant, so the two can never drift apart.
+#   USBMode=default    USB-OTG (TinyUSB): what the HID keyboard needs
+#   CDCOnBoot=cdc      USB serial from boot: what the helper talks to
+#   UploadMode=cdc     1200-bps touch, then wait for the port to come
+#                      back: how a board already running this TinyUSB
+#                      firmware gets into download mode for a reflash
+#                      (the QT Py profile had this built in; the generic
+#                      profile defaults to the UART/hardware-CDC flow)
+#   FlashSize=4M, FlashMode=qio, PartitionScheme=default
+#                      the Zero's 4 MB flash, QIO at 80 MHz, 1.2 MB app
+#   PSRAM=disabled     the Zero has 2 MB PSRAM; nothing here needs it
+FQBN = (
+    "esp32:esp32:esp32s3:"
+    "USBMode=default,"
+    "CDCOnBoot=cdc,"
+    "UploadMode=cdc,"
+    "FlashSize=4M,"
+    "FlashMode=qio,"
+    "PartitionScheme=default,"
+    "PSRAM=disabled"
+)
 PLIST_PATH = pathlib.Path.home() / "Library" / "LaunchAgents" / "com.dashtouch.helper.plist"
 # Not shared, world-readable /tmp — launchd's stdout/stderr log for the
 # helper (which includes the web UI's origin) lives under the user's own

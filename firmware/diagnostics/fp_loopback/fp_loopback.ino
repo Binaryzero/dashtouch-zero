@@ -1,9 +1,9 @@
-// UART loopback test -- proves whether the QT Py's UART1 on GPIO 5/16 works
-// AT ALL, with no sensor involved.
+// UART loopback test -- proves whether the ESP32-S3-Zero's UART1 on GPIO43/44
+// works AT ALL, with no sensor involved.
 //
-// Wire a single jumper from the pad labeled TX (GPIO 5) to the pad labeled
-// RX (GPIO 16). Nothing else. Whatever the board transmits should come
-// straight back into its own receiver.
+// Disconnect the sensor, then wire a single jumper from the pad labeled TX
+// (GPIO43) to the pad labeled RX (GPIO44). Nothing else. Whatever the board
+// transmits should come straight back into its own receiver.
 //
 // Bytes come back  -> the board's UART and both pads are fine, and the fault
 //                     is downstream (sensor or sensor wiring).
@@ -11,8 +11,8 @@
 //                     diagnosis made through this path is unsafe.
 #include <Arduino.h>
 
-static const int PIN_TX = 5;   // pad labeled "TX"
-static const int PIN_RX = 16;  // pad labeled "RX"
+static const int PIN_TX = 43;  // pad labeled "TX" (GPIO43)
+static const int PIN_RX = 44;  // pad labeled "RX" (GPIO44)
 
 HardwareSerial Port(1);
 
@@ -46,13 +46,13 @@ void setup() {
 
 void loop() {
   Serial.println("=== loopback test start ===");
-  Serial.println("jumper the pad labeled TX to the pad labeled RX, nothing else");
+  Serial.println("sensor disconnected: jumper the pad labeled TX (GPIO43) to the pad labeled RX (GPIO44), nothing else");
   Serial.flush();
 
-  runTest(57600, PIN_RX, PIN_TX, "rx=16 tx=5  ");
-  runTest(9600, PIN_RX, PIN_TX, "rx=16 tx=5  ");
-  runTest(115200, PIN_RX, PIN_TX, "rx=16 tx=5  ");
-  runTest(57600, PIN_TX, PIN_RX, "rx=5  tx=16 ");
+  runTest(57600, PIN_RX, PIN_TX, "rx=44 tx=43");
+  runTest(9600, PIN_RX, PIN_TX, "rx=44 tx=43");
+  runTest(115200, PIN_RX, PIN_TX, "rx=44 tx=43");
+  runTest(57600, PIN_TX, PIN_RX, "rx=43 tx=44");
 
   Serial.println("=== loopback test complete ===");
   Serial.println("received=8 on any line means the UART and both pads work");

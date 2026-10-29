@@ -27,7 +27,7 @@ if ! command -v arduino-cli >/dev/null; then
 fi
 
 if ! arduino-cli core list 2>/dev/null | grep -q "esp32:esp32"; then
-  say "Teaching arduino-cli about the QT Py (one-time, ~2 minutes)."
+  say "Teaching arduino-cli about the ESP32-S3 (one-time, ~2 minutes)."
   # Only create a fresh config if one doesn't already exist — a builder who
   # uses arduino-cli for other boards shouldn't lose their config here.
   arduino-cli config init >/dev/null 2>&1 || true
@@ -37,4 +37,4 @@ if ! arduino-cli core list 2>/dev/null | grep -q "esp32:esp32"; then
   arduino-cli core install esp32:esp32
 fi
 
-exec .venv/bin/dashtouch setup
+exec .venv/bin/dashtouch setup "$@"

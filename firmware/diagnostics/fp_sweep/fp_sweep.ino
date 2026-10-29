@@ -4,8 +4,8 @@
 #include <Arduino.h>
 #include <Adafruit_Fingerprint.h>
 
-static const int PIN_A = 16;  // QT Py header pin labeled "RX"
-static const int PIN_B = 5;   // QT Py header pin labeled "TX"
+static const int PIN_A = 44;  // ESP32-S3-Zero pad labeled "RX" (GPIO44)
+static const int PIN_B = 43;  // ESP32-S3-Zero pad labeled "TX" (GPIO43)
 
 HardwareSerial fserial(1);
 Adafruit_Fingerprint finger(&fserial);
@@ -59,9 +59,9 @@ void runSweep() {
   for (int pass = 0; pass < 2; pass++) {
     for (int i = 0; i < NBAUDS; i++) {
       if (pass == 0) {
-        tryCombo(BAUDS[i], PIN_A, PIN_B, "rx=16(RX) tx=5(TX) [as-wired] ");
+        tryCombo(BAUDS[i], PIN_A, PIN_B, "rx=44(RX) tx=43(TX) [as-wired]");
       } else {
-        tryCombo(BAUDS[i], PIN_B, PIN_A, "rx=5(TX)  tx=16(RX) [swapped] ");
+        tryCombo(BAUDS[i], PIN_B, PIN_A, "rx=43(TX) tx=44(RX) [swapped]");
       }
     }
   }
