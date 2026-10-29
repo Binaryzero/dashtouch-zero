@@ -610,6 +610,42 @@ button:hover { filter: brightness(1.08); }
 .toggle-input:focus-visible + .toggle-switch { outline: 2px solid var(--aura-purple); outline-offset: 2px; }
 .toggle-input:disabled + .toggle-switch { opacity: .4; }
 
+/* -- quiet hours: the helper's overnight schedule for the resting ring -- */
+.night-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem 1rem;
+  margin-top: .6rem;
+  color: var(--muted);
+  font-size: .9rem;
+}
+.night-controls[hidden] { display: none; }  /* flex above would otherwise beat `hidden` */
+.night-field {
+  display: inline-flex;
+  flex-direction: row;  /* the global label rule stacks; these read as a sentence */
+  align-items: center;
+  gap: .4rem;
+  font-size: inherit;
+  color: inherit;
+}
+.night-field input,
+.night-field select {
+  color-scheme: dark;
+  font: inherit;
+  color: var(--text);
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .25rem .45rem;
+}
+.night-field input:disabled,
+.night-field select:disabled { opacity: .4; cursor: not-allowed; }
+.night-field input:focus-visible,
+.night-field select:focus-visible { outline: 2px solid var(--aura-purple); outline-offset: 2px; }
+.night-status { margin: .6rem 0 0; }
+.night-status--active { color: var(--text); }
+
 /* -- finger panel: naming a fresh enrollment, or rename + remove ------- */
 .finger-panel {
   display: flex;

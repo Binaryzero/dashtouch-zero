@@ -97,6 +97,29 @@
             </div>
           </div>
 
+          <div class="settings-row settings-row--toggle" id="settings-night-row" hidden>
+            <label class="settings-toggle-label" for="night-toggle">
+              <span class="settings-label">Quiet hours</span>
+              <input type="checkbox" id="night-toggle" class="toggle-input">
+              <span class="toggle-switch" aria-hidden="true"></span>
+            </label>
+            <p class="hint">Dims the resting ring overnight on your Mac&rsquo;s
+            clock, then puts your resting color back. Matches and errors still
+            flash, and it only happens while the helper is running.</p>
+            <div class="night-controls" id="night-controls" hidden>
+              <label class="night-field">From
+                <input type="time" id="night-start"></label>
+              <label class="night-field">to
+                <input type="time" id="night-end"></label>
+              <label class="night-field">the ring is
+                <select id="night-during">
+                  <option value="off">off</option>
+                  <option value="breathing">breathing</option>
+                </select></label>
+            </div>
+            <p class="hint night-status" id="night-status" hidden></p>
+          </div>
+
           <div class="settings-row settings-row--toggle">
             <label class="settings-toggle-label" for="press-enter-toggle">
               <span class="settings-label">Press Return after typing</span>

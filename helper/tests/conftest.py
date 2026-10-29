@@ -55,8 +55,10 @@ def isolate_dashtouch_home(tmp_path, monkeypatch):
     Linux CI runners, where no such binary exists.
     """
     import dashtouch_helper.keychain as keychain
+    from dashtouch_helper import night
 
     monkeypatch.setattr(webui, "URL_PATH", tmp_path / "webui-url")
+    monkeypatch.setattr(night, "NIGHT_PATH", tmp_path / "night.json")
     monkeypatch.setattr(webui, "LABELS_PATH", tmp_path / "labels.json")
     monkeypatch.setattr(webui, "TOKEN_PATH", tmp_path / "token")
 

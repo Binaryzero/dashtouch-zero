@@ -358,7 +358,7 @@ function computeRingState(s) {
 // the historical purple/steady default while settings are still unknown —
 // momentary, so no error copy.
 function idleAppearance() {
-  const settings = currentSettingsBase();
+  const settings = ringIdleSettings();
   const colorDef = IDLE_COLORS.find((c) => c.n === settings.idle_color) || IDLE_COLORS[3];
   const breathing = settings.idle_style === 2;
   return {colorDef, breathing};
@@ -771,10 +771,27 @@ async function postSetting(key, value) {
   }
 }
 
+// What the settings controls edit. With quiet hours on, the resting
+// color/style are the daytime choice the helper keeps (the device itself
+// may be deliberately dark right now); otherwise they're the device's
+// live settings. An in-flight edit wins over both until the next poll.
 function currentSettingsBase() {
   if (settingsOverride) return settingsOverride;
-  if (lastStatus && lastStatus.settings) return lastStatus.settings;
+  const device = lastStatus && lastStatus.settings;
+  const night = currentNight();
+  if (device && night && night.enabled && night.day) {
+    return {...device, idle_color: night.day.idle_color, idle_style: night.day.idle_style};
+  }
+  if (device) return device;
   return {idle_color: 3, idle_style: 1, press_enter: true};
+}
+
+// What the ring on this page should mirror: the device's own resting
+// settings, which during quiet hours differ from the daytime choice.
+function ringIdleSettings() {
+  const night = currentNight();
+  if (night && night.enabled && lastStatus && lastStatus.settings) return lastStatus.settings;
+  return currentSettingsBase();
 }
 
 function setIdleColor(n) {
@@ -796,14 +813,13 @@ function setPressEnter(on) {
 }
 
 function renderSettings(s) {
-  const settings = settingsOverride || s.settings;
-  const known = !!settings;
+  const known = !!(settingsOverride || s.settings);
   const disabled = !known || !token;
 
   document.getElementById("settings-reading").hidden =
     known || !s.connected;
 
-  const active = settings || {idle_color: 3, idle_style: 1, press_enter: true};
+  const active = currentSettingsBase();
 
   // -- resting color swatches --
   const swatchRow = document.getElementById("swatch-row");
@@ -876,6 +892,91 @@ function renderSettings(s) {
   toggle.checked = !!active.press_enter;
   toggle.disabled = disabled;
   toggle.onchange = () => setPressEnter(toggle.checked);
+}
+
+// -- quiet hours: the helper's overnight schedule for the resting ring ---
+// Lives in the helper (the device has no clock), so it arrives as s.night
+// rather than inside s.settings. Same optimistic-then-corrected pattern as
+// settingsOverride: a change shows at once and the next poll has the say.
+let nightOverride = null;
+
+function currentNight() {
+  if (nightOverride) return nightOverride;
+  if (lastStatus && lastStatus.night) return lastStatus.night;
+  return null;
+}
+
+async function postNight(fields) {
+  await tokenReady;
+  try {
+    const response = await fetch("/api/night", {method: "POST",
+      headers: {"Content-Type": "application/json", "X-DT-Token": token},
+      body: JSON.stringify(fields)});
+    if (!response.ok) {
+      document.getElementById("progress").textContent = "That didn't go through — this page has probably gone stale. Close this tab and open the fresh link from the helper (or run .venv/bin/dashtouch enroll).";
+    }
+  } catch {
+    document.getElementById("progress").textContent = "Can't reach the helper — is it still running?";
+  }
+}
+
+function setNight(fields) {
+  const base = currentNight();
+  if (base) nightOverride = {...base, ...fields};
+  if (lastStatus) {
+    renderNight(lastStatus);
+    renderSettings(lastStatus);  // the swatches switch between device and daytime choice
+  }
+  postNight(fields);
+}
+
+// "22:00" -> "10:00 PM" (or "22:00" where the locale says so).
+function clockLabel(hhmm) {
+  const [h, m] = String(hhmm).split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
+}
+
+function renderNight(s) {
+  const row = document.getElementById("settings-night-row");
+  const night = nightOverride || s.night;
+  if (!night) {
+    row.hidden = true;  // a helper that predates quiet hours
+    return;
+  }
+  row.hidden = false;
+  // Needs the device's settings in hand: enabling captures them as the
+  // daytime choice, so there's nothing sensible to do before they're known.
+  const disabled = !s.settings || !token;
+
+  const toggle = document.getElementById("night-toggle");
+  toggle.checked = !!night.enabled;
+  toggle.disabled = disabled;
+  toggle.onchange = () => setNight({enabled: toggle.checked});
+
+  document.getElementById("night-controls").hidden = !night.enabled;
+  for (const [id, key] of [["night-start", "start"], ["night-end", "end"], ["night-during", "during"]]) {
+    const el = document.getElementById(id);
+    // The poll runs every 800 ms; never overwrite a field someone is
+    // in the middle of editing.
+    if (document.activeElement !== el && el.value !== night[key]) el.value = night[key];
+    el.disabled = disabled;
+    el.onchange = () => { if (el.value) setNight({[key]: el.value}); };
+  }
+
+  const status = document.getElementById("night-status");
+  if (!night.enabled) {
+    status.hidden = true;
+    return;
+  }
+  const what = night.during === "breathing" ? "breathes" : "stays dark";
+  status.textContent = night.active
+    ? `Quiet hours are on right now: the ring ${what} until ${clockLabel(night.end)}. The resting color above is what it goes back to.`
+    : `From ${clockLabel(night.start)} the ring ${what}, until ${clockLabel(night.end)}.`;
+  status.classList.toggle("night-status--active", !!night.active);
+  status.hidden = false;
 }
 
 // -- status marks: checkmark (ok) / empty checkbox (off) / x (bad) / warn --
@@ -972,6 +1073,10 @@ async function refresh() {
   if (s.settings) {
     settingsOverride = null;
   }
+  if (s.night) {
+    nightOverride = null;
+  }
+  renderNight(s);
   renderSettings(s);
 
   // Single call site for computeRingState — it's also where lastSeq

@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 
-from . import keychain, protocol, serial_link
+from . import keychain, night, protocol, serial_link
 from . import webui
 
 DEFAULT_SERIAL = "68EE8F6E7390"
@@ -70,6 +70,10 @@ class Daemon:
                       # Why the board can't be picked out, while that's the
                       # case (currently: several usbmodem ports at once).
                       "port_problem": None}
+        # Quiet hours: the helper-side schedule that dims the resting ring
+        # overnight (see night.py). Ticked from the serial loop; told to
+        # re-check at once whenever the device reports its settings.
+        self.quiet = night.QuietHours(self)
 
     # -- connection lifecycle -----------------------------------------------
     def _on_connect(self) -> None:
@@ -251,6 +255,10 @@ class Daemon:
                         continue
             if {"idle_color", "idle_style", "press_enter", "fp_swap"} <= settings.keys():
                 self.state["settings"] = settings
+                # A fresh reading of the ring: if quiet hours say it should
+                # look different right now (a reflash, a reconnect after
+                # the window opened), fix that now rather than in 15 s.
+                self.quiet.tick(force=True)
         elif line.startswith("SET_OK "):
             self.log_event("device", line)
             parts = line.split()
@@ -451,6 +459,14 @@ class Daemon:
                             msg = f"error handling line {line!r}: {e}"
                             print(msg, file=sys.stderr)
                             self.log_event("helper", msg)
+                    try:
+                        self.quiet.tick()
+                    except Exception as e:
+                        # Same reasoning as above: a bug in the schedule
+                        # must not take the serial loop down with it.
+                        msg = f"quiet hours error: {e}"
+                        print(msg, file=sys.stderr)
+                        self.log_event("helper", msg)
             except (OSError, serial_link.serial.SerialException):
                 self.state["connected"] = False
                 with self._write_lock:

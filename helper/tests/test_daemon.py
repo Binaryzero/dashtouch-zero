@@ -474,6 +474,30 @@ def test_set_ok_before_any_settings_ok_starts_from_empty():
     assert d.state["settings"] == {"idle_color": 4}
 
 
+# -- quiet hours (night.py) ------------------------------------------------
+
+def test_quiet_hours_start_off():
+    d = make_daemon()
+    assert d.quiet.snapshot()["enabled"] is False
+
+
+def test_settings_reply_makes_quiet_hours_catch_up_at_once():
+    d = make_daemon()
+    d.state["connected"] = True
+    d.quiet.clock = lambda: time.struct_time((2026, 1, 1, 23, 0, 0, 3, 1, -1))
+    d.quiet.update({"enabled": True})  # settings unknown yet: nothing to send
+    assert d._ser.written == []
+    d.handle_line("SETTINGS_OK idle_color=3 idle_style=1 press_enter=1 fp_swap=0")
+    assert d._ser.written == [b"SET idle_color 0\n"]
+
+
+def test_settings_reply_with_quiet_hours_off_sends_nothing():
+    d = make_daemon()
+    d.state["connected"] = True
+    d.handle_line("SETTINGS_OK idle_color=3 idle_style=1 press_enter=1 fp_swap=0")
+    assert d._ser.written == []
+
+
 # -- Task 7n: fp_swap (device-stored sensor pin orientation) ----------------
 
 def test_settings_ok_parses_fp_swap_true():

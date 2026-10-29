@@ -216,6 +216,10 @@ def _make_handler(daemon, token):
                 st["slots"] = _load_labels()
                 st["health"] = daemon.health()
                 st["last_update_check"] = getattr(daemon, "last_update_check", None)
+                # Quiet hours live in the helper, not the device, so they
+                # ride along here rather than inside st["settings"].
+                quiet = getattr(daemon, "quiet", None)
+                st["night"] = quiet.snapshot() if quiet is not None else None
                 self._json(200, st)
             elif path == "/api/log":
                 if not secrets.compare_digest(self.headers.get("X-DT-Token") or "", token):
@@ -285,6 +289,33 @@ def _make_handler(daemon, token):
                 self._json(202, {"ok": True})
                 return
 
+            if self.path == "/api/night":
+                # Quiet hours (night.py): a helper-side schedule, so this
+                # never touches the device directly — the controller does,
+                # with the same SET lines /api/settings uses. Token-gated
+                # like every other mutating route.
+                quiet = getattr(daemon, "quiet", None)
+                if quiet is None:
+                    self._json(404, {"error": "quiet hours unavailable"})
+                    return
+                try:
+                    n = int(self.headers.get("Content-Length", 0))
+                    body = json.loads(self.rfile.read(n) or b"{}")
+                except (ValueError, json.JSONDecodeError):
+                    daemon.log_event("web", "rejected: bad request")
+                    self._json(400, {"error": "bad request"})
+                    return
+                try:
+                    snap = quiet.update(body)
+                except ValueError as e:
+                    daemon.log_event("web", f"rejected: quiet hours: {e}")
+                    self._json(400, {"error": str(e)})
+                    return
+                daemon.log_event("web", "quiet hours: "
+                                 + ", ".join(f"{k}={body[k]}" for k in sorted(body)))
+                self._json(202, snap)
+                return
+
             if self.path == "/api/settings":
                 try:
                     n = int(self.headers.get("Content-Length", 0))
@@ -324,9 +355,18 @@ def _make_handler(daemon, token):
                     self._json(400, {"error": "unknown key"})
                     return
 
-                daemon.send_command(f"SET {key} {n_val}")
-                daemon.log_event("web", f"settings: set {key} to {n_val}")
-                self._json(202, {"ok": True})
+                quiet = getattr(daemon, "quiet", None)
+                if quiet is not None and key in ("idle_color", "idle_style"):
+                    # The resting choice goes through quiet hours, which
+                    # keeps it as the daytime choice and holds it back
+                    # while the ring is deliberately dark (see night.py).
+                    applied = quiet.route_idle_setting(key, n_val)
+                else:
+                    daemon.send_command(f"SET {key} {n_val}")
+                    applied = True
+                daemon.log_event("web", f"settings: set {key} to {n_val}"
+                                 + ("" if applied else " (kept for when quiet hours end)"))
+                self._json(202, {"ok": True, "applied": applied})
                 return
 
             try:
