@@ -7,7 +7,7 @@ import urllib.error
 from types import SimpleNamespace
 from unittest import mock
 
-from dashtouch_helper import webui
+from dashtouch_helper import night, webui
 
 
 CANNED_HEALTH = [
@@ -683,6 +683,102 @@ def test_settings_press_enter_coerces_false_variants():
                         {"key": "press_enter", "value": value}, token)
         assert status == 202
         assert d.sent == ["SET press_enter 0"]
+
+
+# -- /api/night: quiet hours (helper-side schedule, see night.py) ------------
+
+def at(h, m=0):
+    return lambda: time.struct_time((2026, 1, 1, h, m, 0, 3, 1, -1))
+
+
+def start_with_quiet(clock=None):
+    d, host, port, token = start()
+    d.state["settings"] = {"idle_color": 3, "idle_style": 1,
+                           "press_enter": True, "fp_swap": False}
+    d.quiet = night.QuietHours(d)  # NIGHT_PATH is tmp_path's, via conftest
+    if clock:
+        d.quiet.clock = clock
+    return d, host, port, token
+
+
+def test_status_reports_no_quiet_hours_for_a_daemon_without_them():
+    d, host, port, token = start()
+    status, body = req(host, port, "GET", "/api/status")
+    assert status == 200 and body["night"] is None
+
+
+def test_status_carries_the_quiet_hours_snapshot():
+    d, host, port, token = start_with_quiet()
+    status, body = req(host, port, "GET", "/api/status")
+    assert status == 200
+    assert body["night"] == {"enabled": False, "start": "22:00", "end": "07:00",
+                             "during": "off", "day": {"idle_color": 3, "idle_style": 1},
+                             "active": False}
+
+
+def test_night_requires_token():
+    d, host, port, token = start_with_quiet()
+    status, _ = req(host, port, "POST", "/api/night", {"enabled": True})
+    assert status == 403
+    assert d.sent == []
+
+
+def test_night_is_404_on_a_daemon_without_quiet_hours():
+    d, host, port, token = start()
+    status, _ = req(host, port, "POST", "/api/night", {"enabled": True}, token)
+    assert status == 404
+
+
+def test_night_enable_answers_with_the_snapshot_and_dims_when_active():
+    d, host, port, token = start_with_quiet(clock=at(23))
+    status, body = req(host, port, "POST", "/api/night", {"enabled": True}, token)
+    assert status == 202
+    assert body["enabled"] is True and body["active"] is True
+    assert body["day"] == {"idle_color": 3, "idle_style": 1}
+    assert d.sent == ["SET idle_color 0"]
+
+
+def test_night_rejects_bad_fields_without_touching_anything():
+    d, host, port, token = start_with_quiet(clock=at(23))
+    for bad in ({"start": "25:00"}, {"during": "dim"}, {"enabled": 1}, {"nope": 1}, {}):
+        status, body = req(host, port, "POST", "/api/night", bad, token)
+        assert status == 400 and "error" in body, bad
+    assert d.sent == []
+    status, body = req(host, port, "GET", "/api/status")
+    assert body["night"]["enabled"] is False
+
+
+def test_settings_idle_color_at_night_is_kept_for_the_morning_not_sent():
+    d, host, port, token = start_with_quiet(clock=at(23))
+    req(host, port, "POST", "/api/night", {"enabled": True}, token)
+    d.sent.clear()
+    status, body = req(host, port, "POST", "/api/settings",
+                       {"key": "idle_color", "value": 2}, token)
+    assert status == 202 and body["applied"] is False
+    assert d.sent == []
+    status, body = req(host, port, "GET", "/api/status")
+    assert body["night"]["day"]["idle_color"] == 2
+
+
+def test_settings_idle_color_by_day_goes_to_the_device_and_the_day_choice():
+    d, host, port, token = start_with_quiet(clock=at(12))
+    req(host, port, "POST", "/api/night", {"enabled": True}, token)
+    status, body = req(host, port, "POST", "/api/settings",
+                       {"key": "idle_color", "value": 2}, token)
+    assert status == 202 and body["applied"] is True
+    assert d.sent == ["SET idle_color 2"]
+    status, body = req(host, port, "GET", "/api/status")
+    assert body["night"]["day"]["idle_color"] == 2
+
+
+def test_settings_press_enter_bypasses_quiet_hours():
+    d, host, port, token = start_with_quiet(clock=at(23))
+    req(host, port, "POST", "/api/night", {"enabled": True}, token)
+    d.sent.clear()
+    status, body = req(host, port, "POST", "/api/settings",
+                       {"key": "press_enter", "value": 0}, token)
+    assert status == 202 and body["applied"] is True
+    assert d.sent == ["SET press_enter 0"]
 
 
 # -- Task 7n: fp_swap (device-stored sensor pin orientation) ----------------

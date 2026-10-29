@@ -147,6 +147,16 @@ the running helper which board to use — that's `run --port` / `install-agent
 --port` above. The [README](../README.md#if-you-have-other-usb-serial-devices)
 has the same steps in order.
 
+## The ring went dark (or started breathing) on its own
+
+Look under Settings on the helper page for **Quiet hours**. When they're
+on, the helper dims the resting ring between the times you picked and
+puts your color back afterwards, and the page says so while it's
+happening. Matches and errors still flash during quiet hours. The
+schedule runs in the helper, so if the helper wasn't running when the
+window opened or closed, the ring catches up within a few seconds of the
+helper starting.
+
 ## The firmware won't compile
 
 `./setup` only installs the ESP32 Arduino core when none is present, so a

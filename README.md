@@ -285,6 +285,12 @@ after typing in your password. You can switch that off if you want to verify
 that you're ready to authenticate each time, or if you have any qualms about the
 system submitting your password on its own when you register a fingerprint.
 
+There's also **Quiet hours**, for a desk that's in a bedroom: pick a start and
+an end time and the helper switches the resting ring off (or to breathing)
+between them, on your Mac's clock, then puts your resting color back in the
+morning. Matches and errors still flash. The schedule lives in the helper,
+not on the device, so it only happens while the helper is running.
+
 ## Something not working?
 
 Run `.venv/bin/dashtouch doctor` for a quick check-up, or read
