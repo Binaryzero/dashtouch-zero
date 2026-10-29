@@ -187,6 +187,34 @@ LED language only from what renders distinctly.
 (The unit in this build passed all 7 colors and all 4 animated modes,
 despite its listing advertising two colors.)
 
+## `fp_brightness_probe` — "can this unit's ring be dimmed?"
+
+By the book, no: the R503 manual's `AuraLedConfig` (0x35) carries exactly
+four bytes (control, speed, color index, count) and never mentions
+brightness. The seven colors are the on/off combinations of three LED
+channels. Clones vary, so this sketch tries the places a vendor might have
+hidden a brightness field and lets your eyes judge:
+
+1. 0x35 with a fifth byte appended
+2. 0x35 steady with the speed byte varied (unused in steady mode per the manual)
+3. 0x35 steady with color indexes above 7
+4. 0x3C, the ZW-style LED command some clones speak, with high bits in its
+   color bytes
+
+Each attempt starts from a dark ring and is held for 4s; compare it against
+the two reference states (standard steady white and steady blue) at the top
+of each cycle. The serial log mirrors the schedule and records the module's
+ACK per packet (`ack=0x00` accepted, `ack=0x01` bad packet, `no reply`
+ignored). **Only an accepted attempt that is clearly dimmer, same color
+with less light, means anything.** A different color or no light is not
+brightness. The sketch also dumps `ReadProdInfo` (0x3C with no parameters)
+and `ReadSysPara` once at start, which is the closest an unbranded module
+comes to telling you what it is. Reads only; nothing writes a register.
+
+```bash
+.venv/bin/python firmware/diagnostics/capture.py --secs 150   # one full cycle
+```
+
 ## `fp_boot_listen` — "did the sensor ever transmit?"
 
 The R5xx family emits a `0x55` handshake byte within milliseconds of getting
