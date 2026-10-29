@@ -35,7 +35,8 @@ purple, wired to a thumb-sized microcontroller on a workbench.](docs/images/devi
 
 _A look at a Dashboard Touch build in progress, with the fingerprint sensor
 mounted in a small wooden block designed to mount to a desk, the connection
-wires soldered to the QT Py microcontroller, and a standard USB plug providing
+wires soldered to the microcontroller (a QT Py in this early photo; the
+ESP32-S3-Zero wires up the same way), and a standard USB plug providing
 power and sending the signal to the computer._
 
 ## How it works, and why it's safe
@@ -54,13 +55,15 @@ offices, it will probably be something most people are comfortable with.)
 
 ## What you need to get started
 
-The build really only requires a few simple parts. These are the exact devices
-that I used to build mine, but there are _lots_ of similar variants and you
-could probably get them to work with a little bit of effort, too.
+The build really only requires a few simple parts. This version of the
+firmware is set up for the Waveshare ESP32-S3-Zero (the original build used an
+Adafruit QT Py ESP32-S3 — see the note below the table), but there are _lots_
+of similar ESP32-S3 boards and you could probably get them to work with a
+little bit of effort, too.
 
 | Part               | Product                                   | Cost         | Where                                                 |
 | ------------------ | ----------------------------------------- | ------------ | ----------------------------------------------------- |
-| Microcontroller    | Adafruit QT Py ESP32-S3                   | ~$12.50      | [adafruit.com](https://www.adafruit.com/product/5426) |
+| Microcontroller    | Waveshare ESP32-S3-Zero (4 MB flash, 2 MB PSRAM) | ~$6–8 | [waveshare.com](https://www.waveshare.com/wiki/ESP32-S3-Zero) |
 | Fingerprint sensor | Simlug R503 clone                         | ~$10–20      | [Amazon](https://amzn.to/4wnVuO9)                     |
 | USB-C cable        | Must be a _data_ cable, not just charging | you have one | [Amazon](https://amzn.to/4zjg9p9)                     |
 
@@ -69,9 +72,11 @@ which Zimeng Xiong is now selling as a hardware device designed to work with
 his code. You should definitely support his project! And I'm sure his
 enclosure will look really clean and elegant on any setup. 
 
-Presumably a [cheaper board](https://amzn.to/4gjkss2) could work here too. I
-haven't tested any of those other variants, but if you do and it works, please
-do share your notes back. If the Amazon sensor is out of stock,
+The original build used an [Adafruit QT Py ESP32-S3](https://www.adafruit.com/product/5426)
+(~$12.50). If you'd rather use one of those, the two things that changed for
+the Zero are the sensor pins in `firmware/dashtouch/config.h` and the build
+target in `helper/dashtouch_helper/cli.py`; the git history has the QT Py
+values. If the Amazon sensor is out of stock,
 [Adafruit sells the same part](https://www.adafruit.com/product/4651); it was
 just out of stock (and a lot more expensive) when I was doing my build. (Some of
 these links are affiliate links. If I make any money from that, I'll use it to
@@ -86,25 +91,31 @@ with no work required.
 
 ## How to hook it up (what you need to solder)
 
-You'll need to solder a few small connections to put together the QT Py board
-and the sensor. It's not hard if you have experience soldering, but it can be a
-little bit fiddly.
+You'll need to solder a few small connections to put together the ESP32-S3-Zero
+board and the sensor. The Zero's pads are castellated half-holes along the
+board edges, which take a tinned wire nicely. It's not hard if you have
+experience soldering, but it can be a little bit fiddly.
 
 The fingerprint sensor's cable has six colored leads. By default, they're
 attached to a little connector plug (it's a JST-SH connector with a 1mm pitch,
 if you are a nerd) so you will need to either pull the connector pins out of the
 plug or cut the wires so that you can solder them to the board.
 
-The wires connect to the QT Py like this:
+Hold the board component-side up with the USB-C connector at the top. The
+wires connect to the ESP32-S3-Zero like this:
 
-| Wire      | Meaning         | Goes to                                 |
-| --------- | --------------- | --------------------------------------- |
-| Red       | power           | `3V`                                    |
-| Black     | ground          | `GND`                                   |
-| Yellow    | sensor talks    | `RX`                                    |
-| Brown     | sensor listens  | `TX`                                    |
-| Blue      | touch wake      | `A3`                                    |
-| **White** | **touch power** | **`3V` (the same pin as the red wire)** |
+| Wire      | Meaning         | Goes to (pad label / GPIO)                                          |
+| --------- | --------------- | ------------------------------------------------------------------- |
+| Red       | power           | `3V3` — left edge, 3rd pad from the top (the board's 3.3 V output)  |
+| Black     | ground          | `GND` — left edge, 2nd pad from the top                             |
+| Yellow    | sensor talks    | `RX` / GPIO44 — right edge, 2nd pad from the top                    |
+| Brown     | sensor listens  | `TX` / GPIO43 — right edge, top pad                                 |
+| Blue      | touch wake      | `GP8` / GPIO8 — right edge, 2nd pad from the bottom                 |
+| **White** | **touch power** | **`3V3` (the same pad as the red wire)**                            |
+
+The `5V` pad (top left) stays empty. Red and white share one pad: twist them
+together, insulate the splice, and run a single short pigtail to `3V3`. Solder
+with the USB cable unplugged.
 
 Make sure you wire up the white wire to the power lead just like the red wire.
 It's easy to get excited and leave it off, because the sensor will power up and
@@ -124,7 +135,15 @@ cd dashtouch
 
 The script walks you through everything: it makes a pairing key, stores your
 password in the macOS Keychain (this is the same secure way all your other apps
-do it), and flashes the firmware onto the QT Py board.
+do it), and flashes the firmware onto the ESP32-S3-Zero.
+
+If setup says it can't find the board, a brand-new Zero may need a nudge into
+download mode the first time: unplug it, hold the **BOOT** button while
+plugging the USB cable back in, release BOOT, then run
+`./setup --port /dev/cu.usbmodem...` (find the name with `ls /dev/cu.usbmodem*`).
+The board should restart on its own when the flash finishes; if nothing happens
+within a few seconds, press **RESET** once. After that first flash the firmware
+handles reflashes itself, no buttons needed.
 
 Once all of that is configured, you can use the dashtouch command-line tool to
 do all of your key tasks:
@@ -148,7 +167,7 @@ below), and so do `./setup` and `dashtouch pairing`.
 
 The first time you plug the board in after it's wired up and flashed, macOS will
 pop open the Keyboard Setup Assistant. This is a good sign! It means your Mac has
-noticed the QT Py showing up as a USB keyboard, which is exactly what it's
+noticed the ESP32-S3-Zero showing up as a USB keyboard, which is exactly what it's
 supposed to be doing.
 
 Just click **Quit** to dismiss it. The assistant is trying to work out what
@@ -211,12 +230,16 @@ when the flash doesn't happen. Then flash by hand:
 
 ```sh
 arduino-cli board list   # find your board's port, e.g. /dev/cu.usbmodem1402
-arduino-cli compile --fqbn esp32:esp32:adafruit_qtpy_esp32s3_nopsram:CDCOnBoot=cdc,USBMode=default firmware/dashtouch
-arduino-cli upload --fqbn esp32:esp32:adafruit_qtpy_esp32s3_nopsram:CDCOnBoot=cdc,USBMode=default -p <your board's port> firmware/dashtouch
+FQBN="esp32:esp32:esp32s3:USBMode=default,CDCOnBoot=cdc,UploadMode=cdc,FlashSize=4M,FlashMode=qio,PartitionScheme=default,PSRAM=disabled"
+arduino-cli compile --fqbn "$FQBN" firmware/dashtouch
+arduino-cli upload --fqbn "$FQBN" -p <your board's port> firmware/dashtouch
 ```
 
-Check the port carefully if anything else is plugged in over USB — upload
-will overwrite whatever board is on it.
+That is the same build target `dashtouch setup` uses (it lives in
+`helper/dashtouch_helper/cli.py`). Check the port carefully if anything else is
+plugged in over USB — upload will overwrite whatever board is on it. If you put
+the board into download mode with the BOOT button and it doesn't come back on
+its own after the upload, press RESET to start the new firmware.
 
 Delete `firmware/dashtouch/secrets.h` when you're done — it's a plaintext copy
 of the same key that's in your Keychain.
@@ -270,11 +293,12 @@ usual suspects symptom by symptom.
 
 ## Future directions
 
-**Could it be wireless?** In theory, yes — the board has WiFi and Bluetooth LE,
-and pads on the underside for a battery. It'd have to type over Bluetooth rather
-than USB, since typing your password at the login screen is the whole point and
-that only works if your Mac sees a real keyboard. I haven't explored it, so
-consider it an open idea rather than a supported option.
+**Could it be wireless?** In theory, yes — the ESP32-S3 has WiFi and Bluetooth
+LE (though the Zero has no battery circuitry, so it would need its own power
+too). It'd have to type over Bluetooth rather than USB, since typing your
+password at the login screen is the whole point and that only works if your
+Mac sees a real keyboard. I haven't explored it, so consider it an open idea
+rather than a supported option.
 
 ## Credits and contributions
 

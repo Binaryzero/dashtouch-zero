@@ -2,14 +2,22 @@
 // Hardware configuration. Everything here is safe to commit.
 
 // --- Sensor UART pins ------------------------------------------------
-// Defaults follow the QT Py silkscreen: we transmit on the pad labeled
-// TX (GPIO 5) and receive on the pad labeled RX (GPIO 16). Wire the
-// sensor's yellow (TXD) lead to RX and brown (RXD) to TX.
+// ESP32-S3-Zero: TX pad is GPIO43; RX pad is GPIO44.
+// Sensor RX (brown) connects to board TX.
+// Sensor TX (yellow) connects to board RX.
 //
-// If fp_loopback shows your board's TX pad flooding zeros (one known
-// unit does this), swap the two values below — and only then.
-#define DT_FP_TX_PIN 5
-#define DT_FP_RX_PIN 16
+// GPIO43/44 are also the chip's UART0 console pins, so the brown lead
+// sees a short burst of ROM boot-log bytes (115200 baud) at every
+// reset. The sensor ignores anything that isn't a valid 0xEF01 packet,
+// so this is harmless. FingerSerial is UART1, routed to these pads
+// through the GPIO matrix.
+//
+// Don't edit these to swap orientation: `dashtouch pins --swap` stores
+// fp_swap on the device and reverses the two values at boot. A board
+// that was swapped before a reflash keeps that setting — if it comes up
+// silent, run `dashtouch pins --normal` and power-cycle.
+#define DT_FP_TX_PIN 43
+#define DT_FP_RX_PIN 44
 
 #define DT_UART_BAUD 57600
 
@@ -23,11 +31,13 @@
 // --- Finger detection ------------------------------------------------
 // Default: poll the sensor itself (works on every module, no extra
 // wiring assumptions). Optional: gate polling on the WAKEUP line (blue
-// lead on A3) — set DT_USE_WAKEUP_PIN 1 and pick the polarity your
-// module actually idles at. One known module idles at the "active"
-// level, which makes the pin useless — polling is the safe default.
+// lead on the pad labeled GP8) — set DT_USE_WAKEUP_PIN 1 and pick the
+// polarity your module actually idles at. One known module idles at the
+// "active" level, which makes the pin useless — polling is the safe
+// default, so the blue lead never gates sensor polling unless you opt
+// in here.
 #define DT_USE_WAKEUP_PIN 0
-#define DT_WAKEUP_PIN 8         // pad labeled A3
+#define DT_WAKEUP_PIN 8         // pad labeled GP8 (GPIO8)
 #define DT_WAKEUP_ACTIVE LOW    // level meaning "finger present"
 
 #define DT_MIN_SLOT 1

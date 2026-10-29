@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read diagnostic sketch output from the QT Py over USB CDC.
+"""Read diagnostic sketch output from the ESP32-S3-Zero over USB CDC.
 
 Two things this handles that a naive `screen`/`cat` session does not:
 

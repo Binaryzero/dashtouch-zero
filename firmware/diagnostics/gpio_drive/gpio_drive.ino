@@ -1,19 +1,19 @@
 // Plain GPIO drive test -- no UART involved.
 //
-// Keep the same single jumper between the pad labeled TX (GPIO 5) and the pad
-// labeled RX (GPIO 16). This drives each pin as a bare digital output and
-// reads the other as a digital input, which separates two very different
-// faults:
+// With the sensor disconnected, keep the same single jumper between the pad
+// labeled TX (GPIO43) and the pad labeled RX (GPIO44). This drives each pin
+// as a bare digital output and reads the other as a digital input, which
+// separates two very different faults:
 //
-//   GPIO 5 drives fine here  -> the pin is healthy and the UART peripheral
+//   GPIO43 drives fine here  -> the pin is healthy and the UART peripheral
 //                               simply will not route TX onto it. Fix is a
 //                               constant change, not a new board.
-//   GPIO 5 cannot drive high -> the output driver is genuinely damaged. Remap
+//   GPIO43 cannot drive high -> the output driver is genuinely damaged. Remap
 //                               TX to a different free pin, or replace the board.
 #include <Arduino.h>
 
-static const int PIN_TX = 5;
-static const int PIN_RX = 16;
+static const int PIN_TX = 43;  // pad labeled "TX"
+static const int PIN_RX = 44;  // pad labeled "RX"
 
 int probe(int outPin, int inPin, int level) {
   pinMode(outPin, OUTPUT);
